@@ -1,0 +1,43 @@
+#!/usr/bin/with-contenv bash
+
+FFMPEG_BINARY=${REMOTE_FFMPEG_BINARY:-$(which ffmpeg)}
+FFMPEG_VERSION=($(${FFMPEG_BINARY} -version | md5sum))
+FFMPEG_PORT=${REMOTE_FFMPEG_PORT:-34567}
+FFMPEG_PORT=$((FFMPEG_PORT + $(pgrep socat | wc -l)))
+REMOTE_ROOT=/tmp/ffmpeg-$(hostname)-$$
+REMOTE_CACHE=/run/ffmpeg-${FFMPEG_VERSION}
+SSH_KEY_PATH=${REMOTE_FFMPEG_SSH_KEY_PATH:-/config/.ssh/id_rsa}
+CACHE_LIBS=$(ldd ${FFMPEG_BINARY} | awk 'NF == 4 {print "'$REMOTE_ROOT'" $3};')
+CACHE_BINARY=${REMOTE_ROOT}/${FFMPEG_BINARY}
+
+if [ -x /usr/lib/ssh/sftp-server ]; then
+    SFTP_SERVER_PATH="/usr/lib/ssh/sftp-server"
+elif [ -x /usr/lib/openssh/sftp-server ]; then
+    SFTP_SERVER_PATH="/usr/lib/openssh/sftp-server"
+fi
+
+/usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
+SOCAT_PID=$!
+
+/usr/bin/ssh -qtt \
+    -o StrictHostKeyChecking=no \
+    -R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT} \
+    -i ${SSH_KEY_PATH} \
+    ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "
+    mkdir -p ${REMOTE_ROOT} ${REMOTE_CACHE}; \
+    sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}; \
+    cp -nL "$CACHE_LIBS" "$CACHE_BINARY" ${REMOTE_CACHE}; \
+    mount -t proc proc ${REMOTE_ROOT}/proc; \
+    mkdir -p ${REMOTE_ROOT}/tmp/cache; \
+    mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache; \
+    mount --rbind --make-rslave /sys ${REMOTE_ROOT}/sys; \
+    mount --rbind --make-rslave /dev ${REMOTE_ROOT}/dev; \
+    LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "$@"; \
+    umount -R ${REMOTE_ROOT}/dev; \
+    umount -R ${REMOTE_ROOT}/sys; \
+    umount ${REMOTE_ROOT}/tmp/cache; \
+    umount ${REMOTE_ROOT}/proc; \
+    umount ${REMOTE_ROOT}; \
+    rm -r ${REMOTE_ROOT}"
+
+kill $SOCAT_PID

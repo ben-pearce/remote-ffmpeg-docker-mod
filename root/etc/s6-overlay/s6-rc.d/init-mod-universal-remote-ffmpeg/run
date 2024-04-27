@@ -1,0 +1,19 @@
+#!/usr/bin/with-contenv bash
+
+if [ -f /usr/bin/apt ]; then
+    ## Ubuntu
+    echo "\
+        openssh-client \
+        openssh-server \
+        socat \
+        ffmpeg" >> /mod-repo-packages-to-install.list
+fi
+
+if [ -f /sbin/apk ]; then
+    # Alpine
+    echo "\
+        openssh \
+        socat \
+        bash \
+        ffmpeg" >> /mod-repo-packages-to-install.list
+fi
