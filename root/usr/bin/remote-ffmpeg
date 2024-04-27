@@ -19,7 +19,7 @@ fi
 /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
 SOCAT_PID=$!
 
-/usr/bin/ssh -qtt \
+/usr/bin/ssh -qt \
     -o StrictHostKeyChecking=no \
     -R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT} \
     -i ${SSH_KEY_PATH} \
@@ -32,7 +32,7 @@ SOCAT_PID=$!
     mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache; \
     mount --rbind --make-rslave /sys ${REMOTE_ROOT}/sys; \
     mount --rbind --make-rslave /dev ${REMOTE_ROOT}/dev; \
-    LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "$@"; \
+    LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "${*@Q}"; \
     umount -R ${REMOTE_ROOT}/dev; \
     umount -R ${REMOTE_ROOT}/sys; \
     umount ${REMOTE_ROOT}/tmp/cache; \
