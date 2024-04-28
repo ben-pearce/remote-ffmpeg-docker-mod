@@ -1,4 +1,6 @@
 FROM remote-ffmpeg-mod as mod
 FROM ghcr.io/linuxserver/baseimage-alpine:3.19
 
+RUN apk add ffmpeg
+
 COPY --from=mod / /

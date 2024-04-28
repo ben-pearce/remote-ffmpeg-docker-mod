@@ -1,0 +1,6 @@
+FROM remote-ffmpeg-mod as mod
+FROM ghcr.io/linuxserver/baseimage-ubuntu:jammy
+
+RUN apt update && apt install -y ffmpeg
+
+COPY --from=mod / /
