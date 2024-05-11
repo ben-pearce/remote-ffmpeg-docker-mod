@@ -6,7 +6,7 @@ FFMPEG_PORT=${REMOTE_FFMPEG_PORT:-34567}
 FFMPEG_PORT=$((FFMPEG_PORT + $(pgrep socat | wc -l)))
 REMOTE_ROOT=/tmp/ffmpeg-$(hostname)-$$
 REMOTE_CACHE=/run/ffmpeg-${FFMPEG_VERSION}
-SSH_KEY_PATH=${REMOTE_FFMPEG_SSH_KEY_PATH:-/config/.ssh/id_rsa}
+SSH_KEY_PATH=${REMOTE_FFMPEG_SSH_KEY_PATH:-/config/.ssh/id_*}
 CACHE_LIBS=$(ldd ${FFMPEG_BINARY} | awk 'NF == 4 {print "'$REMOTE_ROOT'" $3};')
 CACHE_BINARY=${REMOTE_ROOT}/${FFMPEG_BINARY}
 
