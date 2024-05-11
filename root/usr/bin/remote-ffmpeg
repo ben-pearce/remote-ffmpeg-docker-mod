@@ -17,13 +17,20 @@ elif [ -x /usr/lib/openssh/sftp-server ]; then
 fi
 
 /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
-SOCAT_PID=$!
+trap "kill $!" EXIT
 
 /usr/bin/ssh -qt \
     -o StrictHostKeyChecking=no \
     -R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT} \
     -i ${SSH_KEY_PATH} \
     ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "
+    trap \"
+    umount -R ${REMOTE_ROOT}/dev; \
+    umount -R ${REMOTE_ROOT}/sys; \
+    umount ${REMOTE_ROOT}/tmp/cache; \
+    umount ${REMOTE_ROOT}/proc; \
+    umount ${REMOTE_ROOT}; \
+    rm -r ${REMOTE_ROOT}\" EXIT; \
     mkdir -p ${REMOTE_ROOT} ${REMOTE_CACHE}; \
     sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}; \
     cp -nL "$CACHE_LIBS" "$CACHE_BINARY" ${REMOTE_CACHE}; \
@@ -32,12 +39,4 @@ SOCAT_PID=$!
     mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache; \
     mount --rbind --make-rslave /sys ${REMOTE_ROOT}/sys; \
     mount --rbind --make-rslave /dev ${REMOTE_ROOT}/dev; \
-    LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "${*@Q}"; \
-    umount -R ${REMOTE_ROOT}/dev; \
-    umount -R ${REMOTE_ROOT}/sys; \
-    umount ${REMOTE_ROOT}/tmp/cache; \
-    umount ${REMOTE_ROOT}/proc; \
-    umount ${REMOTE_ROOT}; \
-    rm -r ${REMOTE_ROOT}"
-
-kill $SOCAT_PID
+    LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "${*@Q}";"
