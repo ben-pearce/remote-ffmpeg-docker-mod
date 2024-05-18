@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bash
 
-FFMPEG_BINARY=${REMOTE_FFMPEG_BINARY:-$(which ffmpeg)}
+FFMPEG_BINARY=${REMOTE_FFMPEG_BINARY:-/usr/lib/jellyfin-ffmpeg/ffmpeg}
 FFMPEG_VERSION=($(${FFMPEG_BINARY} -version | md5sum))
 FFMPEG_PORT=${REMOTE_FFMPEG_PORT:-34567}
 FFMPEG_PORT=$((FFMPEG_PORT + $(pgrep socat | wc -l)))
