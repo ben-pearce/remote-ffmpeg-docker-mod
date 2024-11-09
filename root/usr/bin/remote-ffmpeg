@@ -9,6 +9,18 @@ REMOTE_CACHE=/run/ffmpeg-${FFMPEG_VERSION}
 SSH_KEY_PATH=${REMOTE_FFMPEG_SSH_KEY_PATH:-/config/.ssh/id_*}
 CACHE_LIBS=$(ldd ${FFMPEG_BINARY} | awk 'NF == 4 {print "'$REMOTE_ROOT'" $3};')
 CACHE_BINARY=${REMOTE_ROOT}/${FFMPEG_BINARY}
+ALIAS_HOSTS_FILE=/tmp/hosts_ffmpeg-${FFMPEG_VERSION}
+
+IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
+ALIAS=""
+FORWARD_ARGS=()
+for FORWARD in "${HOSTS[@]}" ; do
+    IFS=':' read -r -a LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
+    [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="echo \"127.0.0.1 $ADDR\" >> ${ALIAS_HOSTS_FILE};"
+    /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
+    trap "kill $!" EXIT
+    FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
+done
 
 if [ -x /usr/lib/ssh/sftp-server ]; then
     SFTP_SERVER_PATH="/usr/lib/ssh/sftp-server"
@@ -22,9 +34,11 @@ trap "kill $!" EXIT
 /usr/bin/ssh -qt \
     -o StrictHostKeyChecking=no \
     -R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT} \
+    ${FORWARD_ARGS[@]} \
     -i ${SSH_KEY_PATH} \
     ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "
     trap \"
+    [ -f ${ALIAS_HOSTS_FILE} ] && umount -R ${REMOTE_ROOT}/etc/hosts && rm ${ALIAS_HOSTS_FILE}; \
     umount -R ${REMOTE_ROOT}/dev; \
     umount -R ${REMOTE_ROOT}/sys; \
     umount ${REMOTE_ROOT}/tmp/cache; \
@@ -39,4 +53,6 @@ trap "kill $!" EXIT
     mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache; \
     mount --rbind --make-rslave /sys ${REMOTE_ROOT}/sys; \
     mount --rbind --make-rslave /dev ${REMOTE_ROOT}/dev; \
+    ${ALIAS} \
+    [ -f ${ALIAS_HOSTS_FILE} ] && mount --rbind --make-rslave ${ALIAS_HOSTS_FILE} ${REMOTE_ROOT}/etc/hosts; \
     LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "${*@Q}";"
