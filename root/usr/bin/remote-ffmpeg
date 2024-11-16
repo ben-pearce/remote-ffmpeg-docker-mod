@@ -33,6 +33,18 @@ trap "kill $!" EXIT
     ${FORWARD_ARGS[@]} \
     -i ${SSH_KEY_PATH} \
     ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "
+    
+    if ! command -v sshfs &> /dev/null; then \
+        if [ -f /etc/debian_version ]; then \
+            sudo apt update && sudo apt install -y sshfs; \
+        elif [ -f /etc/alpine-release ]; then \
+            sudo apk update && sudo apk add sshfs; \
+        else \
+            echo \"remote-ffmpeg: unsupported platform\"; \
+            exit 1; \
+        fi; \
+    fi; \
+
     trap \"
     [ -f ${ALIAS_HOSTS_FILE} ] && umount -R ${REMOTE_ROOT}/etc/hosts && rm ${ALIAS_HOSTS_FILE}; \
     umount -R ${REMOTE_ROOT}/dev; \
