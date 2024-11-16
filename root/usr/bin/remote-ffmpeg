@@ -22,11 +22,7 @@ for FORWARD in "${HOSTS[@]}" ; do
     FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
 done
 
-if [ -x /usr/lib/ssh/sftp-server ]; then
-    SFTP_SERVER_PATH="/usr/lib/ssh/sftp-server"
-elif [ -x /usr/lib/openssh/sftp-server ]; then
-    SFTP_SERVER_PATH="/usr/lib/openssh/sftp-server"
-fi
+SFTP_SERVER_PATH=$(command -v /usr/lib/ssh/sftp-server || command -v /usr/lib/openssh/sftp-server)
 
 /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
 trap "kill $!" EXIT
