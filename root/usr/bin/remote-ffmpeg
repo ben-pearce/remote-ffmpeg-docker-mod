@@ -15,7 +15,7 @@ IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
 ALIAS=""
 FORWARD_ARGS=()
 for FORWARD in "${HOSTS[@]}" ; do
-    IFS=':' read -r -a LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
+    IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
     [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="echo \"127.0.0.1 $ADDR\" >> ${ALIAS_HOSTS_FILE};"
     /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
     trap "kill $!" EXIT
