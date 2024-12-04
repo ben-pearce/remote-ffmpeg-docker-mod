@@ -13,19 +13,21 @@ ALIAS_HOSTS_FILE=/tmp/hosts_ffmpeg-${FFMPEG_VERSION}
 
 IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
 ALIAS=""
+KILL=""
 FORWARD_ARGS=()
 for FORWARD in "${HOSTS[@]}" ; do
     IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
     [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="echo \"127.0.0.1 $ADDR\" >> ${ALIAS_HOSTS_FILE};"
     /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
-    trap "kill $!" EXIT
+    KILL+="kill $!;"
     FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
 done
 
 SFTP_SERVER_PATH=$(command -v /usr/lib/ssh/sftp-server || command -v /usr/lib/openssh/sftp-server)
 
 /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
-trap "kill $!" EXIT
+KILL+="kill $!;"
+trap "$KILL" EXIT
 
 /usr/bin/ssh -qt \
     -o StrictHostKeyChecking=no \
