@@ -54,6 +54,5 @@ In theory, all LinuxServer.io images are supported, the mod will search for the 
 ## Planned functionality
 - Local FFMPEG failover
 - Round robin load balancing with multiple remote hosts
-- Automatic detection of remote envrionment distro & installation of SSHFS.
 - Automatic retrying when remote is unavailable with configurable timeouts.
 - Manipulation of ffmpeg flags on a per-host basis, using regex replacements.
