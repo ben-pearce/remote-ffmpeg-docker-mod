@@ -7,9 +7,9 @@ name: Docker
 
 on:
   push:
-    branches: [ "master", "jellyfin" ]
+    branches: [ "jellyfin" ]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: [ 'jellyfin-v*.*.*' ]
   pull_request:
     branches: [ "master" ]
 
