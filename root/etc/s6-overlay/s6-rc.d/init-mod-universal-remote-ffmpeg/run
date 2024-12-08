@@ -13,5 +13,6 @@ if [ -f /sbin/apk ]; then
     echo "\
         openssh \
         socat \
-        bash" >> /mod-repo-packages-to-install.list
+        bash \
+        flock" >> /mod-repo-packages-to-install.list
 fi

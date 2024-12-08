@@ -3,66 +3,90 @@
 FFMPEG_BINARY=${REMOTE_FFMPEG_BINARY:-/usr/lib/jellyfin-ffmpeg/ffmpeg}
 FFMPEG_VERSION=($(${FFMPEG_BINARY} -version | md5sum))
 FFMPEG_PORT=${REMOTE_FFMPEG_PORT:-34567}
-FFMPEG_PORT=$((FFMPEG_PORT + $(pgrep socat | wc -l)))
 REMOTE_ROOT=/tmp/ffmpeg-$(hostname)-$$
 REMOTE_CACHE=/run/ffmpeg-${FFMPEG_VERSION}
 SSH_KEY_PATH=${REMOTE_FFMPEG_SSH_KEY_PATH:-/config/.ssh/id_*}
 CACHE_LIBS=$(ldd ${FFMPEG_BINARY} | awk 'NF == 4 {print "'$REMOTE_ROOT'" $3};')
 CACHE_BINARY=${REMOTE_ROOT}/${FFMPEG_BINARY}
-ALIAS_HOSTS_FILE=/tmp/hosts_ffmpeg-${FFMPEG_VERSION}
-
-IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
-ALIAS=""
-KILL=""
-FORWARD_ARGS=()
-for FORWARD in "${HOSTS[@]}" ; do
-    IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
-    [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="echo \"127.0.0.1 $ADDR\" >> ${ALIAS_HOSTS_FILE};"
-    /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
-    KILL+="kill $!;"
-    FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
-done
-
+ALIAS_HOSTS_FILE=/tmp/hosts_ffmpeg-${FFMPEG_VERSION}-$$
 SFTP_SERVER_PATH=$(command -v /usr/lib/ssh/sftp-server || command -v /usr/lib/openssh/sftp-server)
+LOCK_TIMEOUT=${REMOTE_FFMPEG_LOCK_TIMEOUT:-30}
+SHARED_LOCK=/var/lock/ffmpeg-${FFMPEG_VERSION}-shared.lock
+EXCLUSIVE_LOCK=/var/lock/ffmpeg-${FFMPEG_VERSION}-exclusive.lock
+if flock -w $LOCK_TIMEOUT 300; then
+    IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
+    ALIAS=""
+    KILL=""
+    FORWARD_ARGS=()
+    for FORWARD in "${HOSTS[@]}" ; do
+        IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
+        SOCAT_PID_FILE=/var/run/ffmpeg-socat-$LOCAL_PORT.pid
+        [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="echo \"127.0.0.1 $ADDR\" >> ${ALIAS_HOSTS_FILE};"
+        if flock -e --nb 200; then
+            /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
+            echo $! > $SOCAT_PID_FILE
+            flock -u 200
+        fi 200>"$SHARED_LOCK"
+        KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
+        FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
+    done
 
-/usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
-KILL+="kill $!;"
-trap "$KILL" EXIT
+    SSH_PID_FILE=/var/run/ffmpeg-ssh.pid
+    SOCAT_PID_FILE=/var/run/ffmpeg-socat.pid
+    if flock -e --nb 200; then
+        /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
+        echo $! > $SOCAT_PID_FILE
+        /usr/bin/ssh -qtN \
+            -o StrictHostKeyChecking=no \
+            -R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT} \
+            ${FORWARD_ARGS[@]} \
+            -i ${SSH_KEY_PATH} \
+            ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} &
+        echo $! > $SSH_PID_FILE
+        flock -u 200
+    fi 200>"$SHARED_LOCK"
+    KILL="flock -e --nb $SHARED_LOCK kill \$(cat $SSH_PID_FILE) && rm $SSH_PID_FILE;$KILL"
+    KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
 
-/usr/bin/ssh -qt \
-    -o StrictHostKeyChecking=no \
-    -R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT} \
-    ${FORWARD_ARGS[@]} \
-    -i ${SSH_KEY_PATH} \
-    ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "
-    
-    if ! command -v sshfs &> /dev/null; then \
-        if [ -f /etc/debian_version ]; then \
-            sudo apt update && sudo apt install -y sshfs; \
-        elif [ -f /etc/alpine-release ]; then \
-            sudo apk update && sudo apk add sshfs; \
-        else \
-            echo \"remote-ffmpeg: unsupported platform\"; \
-            exit 1; \
+    trap "$KILL" EXIT
+    flock -u 300
+fi 300>"$EXCLUSIVE_LOCK"
+
+if flock -s 200; then
+    /usr/bin/ssh -qt \
+        -o StrictHostKeyChecking=no \
+        -i ${SSH_KEY_PATH} \
+        ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "
+        
+        if ! command -v sshfs &> /dev/null; then \
+            if [ -f /etc/debian_version ]; then \
+                sudo apt update && sudo apt install -y sshfs; \
+            elif [ -f /etc/alpine-release ]; then \
+                sudo apk update && sudo apk add sshfs; \
+            else \
+                echo \"remote-ffmpeg: unsupported platform\"; \
+                exit 1; \
+            fi; \
         fi; \
-    fi; \
 
-    trap \"
-    [ -f ${ALIAS_HOSTS_FILE} ] && umount -R ${REMOTE_ROOT}/etc/hosts && rm ${ALIAS_HOSTS_FILE}; \
-    umount -R ${REMOTE_ROOT}/dev; \
-    umount -R ${REMOTE_ROOT}/sys; \
-    umount ${REMOTE_ROOT}/tmp/cache; \
-    umount ${REMOTE_ROOT}/proc; \
-    umount ${REMOTE_ROOT}; \
-    rm -r ${REMOTE_ROOT}\" EXIT; \
-    mkdir -p ${REMOTE_ROOT} ${REMOTE_CACHE}; \
-    sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}; \
-    cp -L --update=none "$CACHE_LIBS" "$CACHE_BINARY" ${REMOTE_CACHE}; \
-    mount -t proc proc ${REMOTE_ROOT}/proc; \
-    mkdir -p ${REMOTE_ROOT}/tmp/cache; \
-    mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache; \
-    mount --rbind --make-rslave /sys ${REMOTE_ROOT}/sys; \
-    mount --rbind --make-rslave /dev ${REMOTE_ROOT}/dev; \
-    ${ALIAS} \
-    [ -f ${ALIAS_HOSTS_FILE} ] && mount --rbind --make-rslave ${ALIAS_HOSTS_FILE} ${REMOTE_ROOT}/etc/hosts; \
-    LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "${*@Q}";"
+        trap \"
+        [ -f ${ALIAS_HOSTS_FILE} ] && umount -R ${REMOTE_ROOT}/etc/hosts && rm ${ALIAS_HOSTS_FILE}; \
+        umount -R ${REMOTE_ROOT}/dev; \
+        umount -R ${REMOTE_ROOT}/sys; \
+        umount ${REMOTE_ROOT}/tmp/cache; \
+        umount ${REMOTE_ROOT}/proc; \
+        umount ${REMOTE_ROOT}; \
+        rm -r ${REMOTE_ROOT}\" EXIT; \
+        mkdir -p ${REMOTE_ROOT} ${REMOTE_CACHE}; \
+        sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}; \
+        cp -L --update=none "$CACHE_LIBS" "$CACHE_BINARY" ${REMOTE_CACHE}; \
+        mount -t proc proc ${REMOTE_ROOT}/proc; \
+        mkdir -p ${REMOTE_ROOT}/tmp/cache; \
+        mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache; \
+        mount --rbind --make-rslave /sys ${REMOTE_ROOT}/sys; \
+        mount --rbind --make-rslave /dev ${REMOTE_ROOT}/dev; \
+        ${ALIAS} \
+        [ -f ${ALIAS_HOSTS_FILE} ] && mount --rbind --make-rslave ${ALIAS_HOSTS_FILE} ${REMOTE_ROOT}/etc/hosts; \
+        LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "${*@Q}";"
+    flock -u 200
+fi 200>"$SHARED_LOCK"
