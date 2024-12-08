@@ -20,7 +20,7 @@ if flock -w $LOCK_TIMEOUT 300; then
     FORWARD_ARGS=()
     for FORWARD in "${HOSTS[@]}" ; do
         IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
-        SOCAT_PID_FILE=/var/run/ffmpeg-socat-$LOCAL_PORT.pid
+        SOCAT_PID_FILE=/tmp/ffmpeg-socat-$LOCAL_PORT.pid
         [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="echo \"127.0.0.1 $ADDR\" >> ${ALIAS_HOSTS_FILE};"
         if flock -e --nb 200; then
             /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
@@ -31,8 +31,8 @@ if flock -w $LOCK_TIMEOUT 300; then
         FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
     done
 
-    SSH_PID_FILE=/var/run/ffmpeg-ssh.pid
-    SOCAT_PID_FILE=/var/run/ffmpeg-socat.pid
+    SSH_PID_FILE=/tmp/ffmpeg-ssh.pid
+    SOCAT_PID_FILE=/tmp/ffmpeg-socat.pid
     if flock -e --nb 200; then
         /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
         echo $! > $SOCAT_PID_FILE
