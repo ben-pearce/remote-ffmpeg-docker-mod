@@ -39,7 +39,7 @@ services:
 ## Environment variables
 
 - `REMOTE_FFMPEG_USER` - The SSH user to login to the remote host as, must have sufficient privileges to run `chroot`. (default: `root`)
-- `REMOTE_FFMPEG_HOST` - The hostname or IP address of th remote host where execution takes place. (default: `''`)
+- `REMOTE_FFMPEG_HOST` - The hostname or IP address of the remote host where execution takes place. (default: `''`)
 - `REMOTE_FFMPEG_FORWARD_HOSTS` - Comma seperated list of port forwards to enable (TCP only). Allows traffic to flow from the remote exeuction environment to the container. (Syntax: `local_port:remote_address:remote_port`). (default: `''`)
 - `REMOTE_FFMPEG_SSH_KEY_PATH` - Override the SSH key path. (default: `/config/.ssh/id_*`)
 - `REMOTE_FFMPEG_BINARY` - Override the container ffmpeg path. (default: `$(which ffmpeg)`) 
