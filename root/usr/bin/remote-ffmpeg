@@ -79,7 +79,7 @@ if flock -s 200; then
         rm -r ${REMOTE_ROOT}\" EXIT; \
         mkdir -p ${REMOTE_ROOT} ${REMOTE_CACHE}; \
         sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}; \
-        cp -L --update=none "$CACHE_LIBS" "$CACHE_BINARY" ${REMOTE_CACHE}; \
+        cp -L --update=none "$CACHE_LIBS" "$CACHE_BINARY" ${REMOTE_CACHE} 2>/dev/null; \
         mount -t proc proc ${REMOTE_ROOT}/proc; \
         mkdir -p ${REMOTE_ROOT}/tmp/cache; \
         mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache; \
