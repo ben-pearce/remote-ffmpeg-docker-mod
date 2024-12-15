@@ -13,6 +13,7 @@ SFTP_SERVER_PATH=$(command -v /usr/lib/ssh/sftp-server || command -v /usr/lib/op
 LOCK_TIMEOUT=${REMOTE_FFMPEG_LOCK_TIMEOUT:-30}
 SHARED_LOCK=/var/lock/ffmpeg-${FFMPEG_VERSION}-shared.lock
 EXCLUSIVE_LOCK=/var/lock/ffmpeg-${FFMPEG_VERSION}-exclusive.lock
+SSH_ARGUMENTS=( -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no )
 if flock -w $LOCK_TIMEOUT 300; then
     IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
     ALIAS=""
@@ -37,10 +38,9 @@ if flock -w $LOCK_TIMEOUT 300; then
         /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
         echo $! > $SOCAT_PID_FILE
         /usr/bin/ssh -qtN \
-            -o StrictHostKeyChecking=no \
+            "${SSH_ARGUMENTS[@]}" \
             -R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT} \
             ${FORWARD_ARGS[@]} \
-            -i ${SSH_KEY_PATH} \
             ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} &
         echo $! > $SSH_PID_FILE
         flock -u 200
@@ -52,41 +52,35 @@ if flock -w $LOCK_TIMEOUT 300; then
     flock -u 300
 fi 300>"$EXCLUSIVE_LOCK"
 
-if flock -s 200; then
-    /usr/bin/ssh -qt \
-        -o StrictHostKeyChecking=no \
-        -i ${SSH_KEY_PATH} \
-        ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "
-        
-        if ! command -v sshfs &> /dev/null; then \
-            if [ -f /etc/debian_version ]; then \
-                sudo apt update && sudo apt install -y sshfs; \
-            elif [ -f /etc/alpine-release ]; then \
-                sudo apk update && sudo apk add sshfs; \
-            else \
-                echo \"remote-ffmpeg: unsupported platform\"; \
-                exit 1; \
-            fi; \
-        fi; \
+flock $SHARED_LOCK /usr/bin/ssh -qt "${SSH_ARGUMENTS[@]}" ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} <<ENDSSH
+if ! command -v sshfs &> /dev/null; then
+    if [ -f /etc/debian_version ]; then
+        sudo apt update && sudo apt install -y sshfs
+    elif [ -f /etc/alpine-release ]; then
+        sudo apk update && sudo apk add sshfs
+    else
+        echo "remote-ffmpeg: unsupported platform"
+        exit 1
+    fi
+fi
 
-        trap \"
-        [ -f ${ALIAS_HOSTS_FILE} ] && umount -R ${REMOTE_ROOT}/etc/hosts && rm ${ALIAS_HOSTS_FILE}; \
-        umount -R ${REMOTE_ROOT}/dev; \
-        umount -R ${REMOTE_ROOT}/sys; \
-        umount ${REMOTE_ROOT}/tmp/cache; \
-        umount ${REMOTE_ROOT}/proc; \
-        umount ${REMOTE_ROOT}; \
-        rm -r ${REMOTE_ROOT}\" EXIT; \
-        mkdir -p ${REMOTE_ROOT} ${REMOTE_CACHE}; \
-        sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}; \
-        cp -L --update=none "$CACHE_LIBS" "$CACHE_BINARY" ${REMOTE_CACHE}; \
-        mount -t proc proc ${REMOTE_ROOT}/proc; \
-        mkdir -p ${REMOTE_ROOT}/tmp/cache; \
-        mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache; \
-        mount --rbind --make-rslave /sys ${REMOTE_ROOT}/sys; \
-        mount --rbind --make-rslave /dev ${REMOTE_ROOT}/dev; \
-        ${ALIAS} \
-        [ -f ${ALIAS_HOSTS_FILE} ] && mount --rbind --make-rslave ${ALIAS_HOSTS_FILE} ${REMOTE_ROOT}/etc/hosts; \
-        LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg "${*@Q}";"
-    flock -u 200
-fi 200>"$SHARED_LOCK"
+trap "
+[ -f ${ALIAS_HOSTS_FILE} ] && umount -R ${REMOTE_ROOT}/etc/hosts && rm ${ALIAS_HOSTS_FILE}
+umount -R ${REMOTE_ROOT}/dev
+umount -R ${REMOTE_ROOT}/sys
+umount ${REMOTE_ROOT}/tmp/cache
+umount ${REMOTE_ROOT}/proc
+umount ${REMOTE_ROOT}
+rm -r ${REMOTE_ROOT}" EXIT
+mkdir -p ${REMOTE_ROOT} ${REMOTE_CACHE}
+sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}
+cp -L --update=none "$CACHE_LIBS" "$CACHE_BINARY" ${REMOTE_CACHE} 2>/dev/null
+mount -t proc proc ${REMOTE_ROOT}/proc
+mkdir -p ${REMOTE_ROOT}/tmp/cache
+mount --bind ${REMOTE_CACHE} ${REMOTE_ROOT}/tmp/cache
+mount --rbind --make-rslave /sys ${REMOTE_ROOT}/sys
+mount --rbind --make-rslave /dev ${REMOTE_ROOT}/dev
+${ALIAS}
+[ -f ${ALIAS_HOSTS_FILE} ] && mount --rbind --make-rslave ${ALIAS_HOSTS_FILE} ${REMOTE_ROOT}/etc/hosts
+LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg ${*@Q};
+ENDSSH
