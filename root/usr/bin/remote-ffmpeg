@@ -13,6 +13,7 @@ SFTP_SERVER_PATH=$(command -v /usr/lib/ssh/sftp-server || command -v /usr/lib/op
 LOCK_TIMEOUT=${REMOTE_FFMPEG_LOCK_TIMEOUT:-30}
 SHARED_LOCK=/var/lock/ffmpeg-${FFMPEG_VERSION}-shared.lock
 EXCLUSIVE_LOCK=/var/lock/ffmpeg-${FFMPEG_VERSION}-exclusive.lock
+SSH_ARGUMENTS=( -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no )
 if flock -w $LOCK_TIMEOUT 300; then
     IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
     ALIAS=""
@@ -37,10 +38,9 @@ if flock -w $LOCK_TIMEOUT 300; then
         /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
         echo $! > $SOCAT_PID_FILE
         /usr/bin/ssh -qtN \
-            -o StrictHostKeyChecking=no \
+            "${SSH_ARGUMENTS[@]}" \
             -R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT} \
             ${FORWARD_ARGS[@]} \
-            -i ${SSH_KEY_PATH} \
             ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} &
         echo $! > $SSH_PID_FILE
         flock -u 200
@@ -52,11 +52,7 @@ if flock -w $LOCK_TIMEOUT 300; then
     flock -u 300
 fi 300>"$EXCLUSIVE_LOCK"
 
-if flock -s 200; then
-    /usr/bin/ssh -qt \
-        -o StrictHostKeyChecking=no \
-        -i ${SSH_KEY_PATH} \
-        ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} <<ENDSSH
+flock $SHARED_LOCK /usr/bin/ssh -qt "${SSH_ARGUMENTS[@]}" ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} <<ENDSSH
 if ! command -v sshfs &> /dev/null; then
     if [ -f /etc/debian_version ]; then
         sudo apt update && sudo apt install -y sshfs
@@ -88,6 +84,3 @@ ${ALIAS}
 [ -f ${ALIAS_HOSTS_FILE} ] && mount --rbind --make-rslave ${ALIAS_HOSTS_FILE} ${REMOTE_ROOT}/etc/hosts
 LD_LIBRARY_PATH=/tmp/cache chroot ${REMOTE_ROOT} /tmp/cache/ffmpeg ${*@Q};
 ENDSSH
-
-    flock -u 200
-fi 200>"$SHARED_LOCK"
