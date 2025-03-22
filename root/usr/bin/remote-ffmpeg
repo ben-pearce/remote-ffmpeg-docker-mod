@@ -4,18 +4,20 @@ FFMPEG_BINARY=${REMOTE_FFMPEG_BINARY:-$(which ffmpeg)}
 REMOTE_ABI=${REMOTE_FFMPEG_REMOTE_ABI:-'glibc'}
 SSHFS_BINARY=${REMOTE_SSHFS_BINARY:-"/usr/bin/${REMOTE_ABI}-sshfs"}
 BUBBLEWRAP_BINARY=${REMOTE_BUBBLEWRAP_BINARY:-"/usr/bin/${REMOTE_ABI}-bwrap"}
-FFMPEG_VERSION=($(${FFMPEG_BINARY} -version | md5sum))
-SSHFS_VERSION=($(${SSHFS_BINARY} -V | md5sum))
+FFMPEG_HASH=($(md5sum ${FFMPEG_BINARY}))
+SSHFS_HASH=($(md5sum ${SSHFS_BINARY}))
+BWRAP_HASH=($(md5sum ${BUBBLEWRAP_BINARY}))
+VERSION_HASH=($(echo ${FFMPEG_HASH} ${SSHFS_HASH} ${BWRAP_HASH} ${REMOTE_ABI} | md5sum))
 FFMPEG_PORT=${REMOTE_FFMPEG_PORT:-34567}
 REMOTE_ROOT=/tmp/ffmpeg-$(hostname)-$$
-REMOTE_CACHE=/tmp/ffmpeg-${FFMPEG_VERSION}${SSHFS_VERSION}
+REMOTE_CACHE=/tmp/ffmpeg-${VERSION_HASH}
 SSH_KEY_PATH=${REMOTE_FFMPEG_SSH_KEY_PATH:-/config/.ssh/id_*}
 CACHE_FFMPEG_LIBS=$(ldd ${FFMPEG_BINARY} | awk 'NF == 2 {print $1} NF == 4 {print $3}')
 CACHE_BINARY=${REMOTE_ROOT}/${FFMPEG_BINARY}
 SFTP_SERVER_PATH=$(command -v /usr/lib/ssh/sftp-server || command -v /usr/lib/openssh/sftp-server)
 LOCK_TIMEOUT=${REMOTE_FFMPEG_LOCK_TIMEOUT:-30}
-SHARED_LOCK=/var/lock/ffmpeg-${FFMPEG_VERSION}-shared.lock
-EXCLUSIVE_LOCK=/var/lock/ffmpeg-${FFMPEG_VERSION}-exclusive.lock
+SHARED_LOCK=/var/lock/ffmpeg-${VERSION_HASH}-shared.lock
+EXCLUSIVE_LOCK=/var/lock/ffmpeg-${VERSION_HASH}-exclusive.lock
 SSH_ARGUMENTS=( -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPath=~/.ssh/%r@%h:%p )
 if flock -w $LOCK_TIMEOUT 300; then
     IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
