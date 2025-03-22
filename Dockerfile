@@ -5,9 +5,6 @@ ARG LIBFUSE_URL="https://github.com/libfuse/libfuse/releases/download/fuse-${LIB
 ARG SSHFS_URL="https://github.com/libfuse/sshfs/releases/download/sshfs-${SSHFS_VERSION}/sshfs-${SSHFS_VERSION}.tar.xz"
 ARG BUBBLEWRAP_URL="https://github.com/containers/bubblewrap/releases/download/v${BUBBLEWRAP_VERSION}/bubblewrap-${BUBBLEWRAP_VERSION}.tar.xz"
 
-FROM ghcr.io/linuxserver/baseimage-alpine:3.19 AS buildstage
-COPY root/ /root-layer/
-
 FROM ghcr.io/linuxserver/baseimage-ubuntu:jammy AS sshfs-glibc
 ARG SSHFS_VERSION
 ARG LIBFUSE_VERSION
@@ -150,11 +147,14 @@ RUN PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/local/lib/pkgconfig \
     -Dselinux=disabled ..
 RUN ninja
 
-FROM scratch
+FROM ghcr.io/linuxserver/baseimage-alpine:3.19 AS buildstage
 ARG SSHFS_VERSION
 ARG BUBBLEWRAP_VERSION
+COPY root/ /root-layer/
+COPY --from=sshfs-glibc /tmp/sshfs-${SSHFS_VERSION}/build/sshfs /root-layer/usr/bin/glibc-sshfs
+COPY --from=sshfs-musl /tmp/sshfs-${SSHFS_VERSION}/build/sshfs /root-layer/usr/bin/musl-sshfs
+COPY --from=bwrap-glibc /tmp/bubblewrap-${BUBBLEWRAP_VERSION}/build/bwrap /root-layer/usr/bin/glibc-bwrap
+COPY --from=bwrap-musl /tmp/bubblewrap-${BUBBLEWRAP_VERSION}/build/bwrap /root-layer/usr/bin/musl-bwrap
+
+FROM scratch
 COPY --from=buildstage /root-layer/ /
-COPY --from=sshfs-glibc /tmp/sshfs-${SSHFS_VERSION}/build/sshfs /usr/bin/glibc-sshfs
-COPY --from=sshfs-musl /tmp/sshfs-${SSHFS_VERSION}/build/sshfs /usr/bin/musl-sshfs
-COPY --from=bwrap-glibc /tmp/bubblewrap-${BUBBLEWRAP_VERSION}/build/bwrap /usr/bin/glibc-bwrap
-COPY --from=bwrap-musl /tmp/bubblewrap-${BUBBLEWRAP_VERSION}/build/bwrap /usr/bin/musl-bwrap
