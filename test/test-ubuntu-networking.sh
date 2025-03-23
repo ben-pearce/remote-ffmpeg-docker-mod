@@ -8,7 +8,7 @@ docker run \
     --network=remote-ffmpeg-network \
     --env-file .env \
     -v ./config:/config/ \
-    remote-ffmpeg /usr/bin/remote-ffmpeg -i http://remote-ffmpeg-nginx:80/demo.mp4 -c:v libx264 -c:a aac -f null /dev/null
+    remote-ffmpeg /usr/bin/remote-ffmpeg -i http://remote-ffmpeg-nginx:8080/demo.mp4 -c:v libx264 -c:a aac -f null /dev/null
 docker stop remote-ffmpeg-nginx
 docker rm -f remote-ffmpeg remote-ffmpeg-nginx
 docker network rm remote-ffmpeg-network
