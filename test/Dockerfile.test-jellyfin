@@ -1,0 +1,4 @@
+FROM remote-ffmpeg-mod AS mod
+FROM ghcr.io/linuxserver/jellyfin:10.10.6
+
+COPY --from=mod / /
