@@ -1,6 +1,5 @@
 FROM remote-ffmpeg-mod AS mod
 FROM ghcr.io/linuxserver/baseimage-ubuntu:jammy
 
-RUN apt update && apt install -y ffmpeg
-
+RUN apt update && apt install -y ffmpeg openssh-client openssh-server socat
 COPY --from=mod / /

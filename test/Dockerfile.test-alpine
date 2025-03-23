@@ -1,6 +1,6 @@
 FROM remote-ffmpeg-mod AS mod
 FROM ghcr.io/linuxserver/baseimage-alpine:3.19
 
-RUN apk add ffmpeg
+RUN apk add ffmpeg openssh socat bash flock
 
 COPY --from=mod / /
