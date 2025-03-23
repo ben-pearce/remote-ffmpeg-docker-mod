@@ -61,10 +61,8 @@ if flock -w $LOCK_TIMEOUT 300; then
     flock -u 300
 fi 300>"$EXCLUSIVE_LOCK"
 
-flock $SHARED_LOCK /usr/bin/ssh -qt "${SSH_ARGUMENTS[@]}" ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} <<ENDSSH
-trap "
-umount ${REMOTE_ROOT}
-rm -r ${REMOTE_ROOT}" EXIT
+SCRIPT=$(cat <<ENDSSH
+trap "umount ${REMOTE_ROOT}; rm -r ${REMOTE_ROOT}" EXIT
 mkdir -p ${REMOTE_ROOT}
 ${REMOTE_CACHE}/${REMOTE_ABI}-sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}
 ${REMOTE_CACHE}/${REMOTE_ABI}-bwrap \
@@ -79,3 +77,8 @@ ${REMOTE_CACHE}/${REMOTE_ABI}-bwrap \
     --die-with-parent \
     ${REMOTE_CACHE}/ffmpeg ${*@Q} 3< <(echo "${ALIAS}");
 ENDSSH
+)
+
+flock $SHARED_LOCK /usr/bin/ssh \
+    -qt "${SSH_ARGUMENTS[@]}" \
+    ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "${SCRIPT}"
