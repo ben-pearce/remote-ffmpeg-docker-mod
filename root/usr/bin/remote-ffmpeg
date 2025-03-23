@@ -73,7 +73,7 @@ ${REMOTE_CACHE}/${REMOTE_ABI}-bwrap \
     --ro-bind ${REMOTE_CACHE} ${REMOTE_CACHE} \
     --ro-bind-data 3 /etc/hosts \
     --proc /proc \
-    --dev /dev \
+    --dev-bind /dev /dev \
     --unshare-pid \
     --die-with-parent \
     ${REMOTE_CACHE}/ffmpeg ${*@Q} 3< <(echo "${ALIAS}");
