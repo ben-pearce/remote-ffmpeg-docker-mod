@@ -19,47 +19,53 @@ LOCK_TIMEOUT=${REMOTE_FFMPEG_LOCK_TIMEOUT:-30}
 SHARED_LOCK=/var/lock/ffmpeg-${VERSION_HASH}-shared.lock
 EXCLUSIVE_LOCK=/var/lock/ffmpeg-${VERSION_HASH}-exclusive.lock
 SSH_ARGUMENTS=( -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPath=~/.ssh/%r@%h:%p )
-if flock -w $LOCK_TIMEOUT 300; then
-    IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
-    ALIAS=""
-    KILL=""
-    FORWARD_ARGS=()
-    for FORWARD in "${HOSTS[@]}" ; do
-        IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
-        SOCAT_PID_FILE=/tmp/ffmpeg-socat-$LOCAL_PORT.pid
-        [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="127.0.0.1 $ADDR"$'\n'
-        if flock -e --nb 200; then
-            /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
-            echo $! > $SOCAT_PID_FILE
-            flock -u 200
-        fi 200>"$SHARED_LOCK"
-        KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
-        FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
-    done
+ALIAS=""
+KILL=""
 
-    SSH_PID_FILE=/tmp/ffmpeg-ssh.pid
-    SOCAT_PID_FILE=/tmp/ffmpeg-socat.pid
+exec {EXCLUSIVE}>$EXCLUSIVE_LOCK
+flock -w $LOCK_TIMEOUT $EXCLUSIVE
+
+IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
+FORWARD_ARGS=()
+for FORWARD in "${HOSTS[@]}" ; do
+    IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
+    SOCAT_PID_FILE=/tmp/ffmpeg-socat-$LOCAL_PORT.pid
+    [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="127.0.0.1 $ADDR"$'\n'
     if flock -e --nb 200; then
-        /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
-        FORWARD_ARGS+=(-R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT})
+        /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
         echo $! > $SOCAT_PID_FILE
-        /usr/bin/ssh -qtN "${SSH_ARGUMENTS[@]}" ${FORWARD_ARGS[@]} ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} &
-        echo $! > $SSH_PID_FILE
         flock -u 200
     fi 200>"$SHARED_LOCK"
-    KILL="flock -e --nb $SHARED_LOCK kill \$(cat $SSH_PID_FILE) && rm $SSH_PID_FILE;$KILL"
     KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
+    FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
+done
 
-    CACHE_DIR=$(mktemp -d)
-    ln -sf $FFMPEG_BINARY $CACHE_FFMPEG_LIBS $SSHFS_BINARY $BUBBLEWRAP_BINARY $CACHE_DIR
-    tar -h -C $CACHE_DIR -czf - . 2>/dev/null | /usr/bin/ssh \
-        -q "${SSH_ARGUMENTS[@]}" ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} \
-        "[[ ! -d ${REMOTE_CACHE} ]] && mkdir -p ${REMOTE_CACHE} && tar xzf - -C ${REMOTE_CACHE}"
-    rm -r $CACHE_DIR
+SSH_PID_FILE=/tmp/ffmpeg-ssh.pid
+SOCAT_PID_FILE=/tmp/ffmpeg-socat.pid
+if flock -e --nb 200; then
+    /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
+    FORWARD_ARGS+=(-R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT})
+    echo $! > $SOCAT_PID_FILE
+    /usr/bin/ssh -qtN "${SSH_ARGUMENTS[@]}" ${FORWARD_ARGS[@]} ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} &
+    echo $! > $SSH_PID_FILE
+    flock -u 200
+fi 200>"$SHARED_LOCK"
+KILL="flock -e --nb $SHARED_LOCK kill \$(cat $SSH_PID_FILE) && rm $SSH_PID_FILE;$KILL"
+KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
 
-    trap "$KILL" EXIT
-    flock -u 300
-fi 300>"$EXCLUSIVE_LOCK"
+CACHE_DIR=$(mktemp -d)
+ln -sf $FFMPEG_BINARY $CACHE_FFMPEG_LIBS $SSHFS_BINARY $BUBBLEWRAP_BINARY $CACHE_DIR
+tar -h -C $CACHE_DIR -czf - . 2>/dev/null | /usr/bin/ssh \
+    -q "${SSH_ARGUMENTS[@]}" ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} \
+    "[[ ! -d ${REMOTE_CACHE} ]] && mkdir -p ${REMOTE_CACHE} && tar xzf - -C ${REMOTE_CACHE}"
+rm -r $CACHE_DIR
+
+KILL="flock $EXCLUSIVE_LOCK /usr/bin/bash -c \"$KILL\""
+trap "$KILL" EXIT
+
+exec {SHARED}>$SHARED_LOCK
+flock -s $SHARED
+flock -u $EXCLUSIVE
 
 SCRIPT=$(cat <<ENDSSH
 trap "umount ${REMOTE_ROOT}; rm -r ${REMOTE_ROOT}" EXIT
@@ -79,6 +85,7 @@ ${REMOTE_CACHE}/${REMOTE_ABI}-bwrap \
 ENDSSH
 )
 
-flock $SHARED_LOCK /usr/bin/ssh \
+/usr/bin/ssh \
     -qt "${SSH_ARGUMENTS[@]}" \
     ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "${SCRIPT}"
+flock -u $SHARED
