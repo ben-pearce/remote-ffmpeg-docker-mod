@@ -10,7 +10,7 @@ BWRAP_HASH=($(md5sum ${BUBBLEWRAP_BINARY}))
 VERSION_HASH=($(echo ${FFMPEG_HASH} ${SSHFS_HASH} ${BWRAP_HASH} ${REMOTE_ABI} | md5sum))
 FFMPEG_PORT=${REMOTE_FFMPEG_PORT:-34567}
 REMOTE_ROOT=/tmp/ffmpeg-$(hostname)-$$
-REMOTE_CACHE=/tmp/ffmpeg-${VERSION_HASH}
+REMOTE_CACHE=/tmp/ffmpeg-cache-${VERSION_HASH}
 SSH_KEY_PATH=${REMOTE_FFMPEG_SSH_KEY_PATH:-/config/.ssh/id_*}
 CACHE_FFMPEG_LIBS=$(ldd ${FFMPEG_BINARY} | awk 'NF == 2 {print $1} NF == 4 {print $3}')
 CACHE_BINARY=${REMOTE_ROOT}/${FFMPEG_BINARY}
@@ -19,6 +19,8 @@ LOCK_TIMEOUT=${REMOTE_FFMPEG_LOCK_TIMEOUT:-30}
 SHARED_LOCK=/var/lock/ffmpeg-${VERSION_HASH}-shared.lock
 EXCLUSIVE_LOCK=/var/lock/ffmpeg-${VERSION_HASH}-exclusive.lock
 SSH_ARGUMENTS=( -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPath=~/.ssh/%r@%h:%p )
+SSH_PID_FILE=/tmp/ffmpeg-ssh.pid
+SOCAT_PID_FILE=/tmp/ffmpeg-socat.pid
 ALIAS=""
 KILL=""
 
@@ -29,19 +31,17 @@ IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
 FORWARD_ARGS=()
 for FORWARD in "${HOSTS[@]}" ; do
     IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
-    SOCAT_PID_FILE=/tmp/ffmpeg-socat-$LOCAL_PORT.pid
+    FORWARD_SOCAT_PID_FILE=/tmp/ffmpeg-socat-$LOCAL_PORT.pid
     [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="127.0.0.1 $ADDR"$'\n'
     if flock -e --nb 200; then
         /usr/bin/socat TCP-LISTEN:$LOCAL_PORT,reuseaddr,fork TCP:$ADDR:$REMOTE_PORT &
-        echo $! > $SOCAT_PID_FILE
+        echo $! > $FORWARD_SOCAT_PID_FILE
         flock -u 200
     fi 200>"$SHARED_LOCK"
-    KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
+    KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $FORWARD_SOCAT_PID_FILE) && rm $FORWARD_SOCAT_PID_FILE;"
     FORWARD_ARGS+=(-R $LOCAL_PORT:localhost:$LOCAL_PORT)
 done
 
-SSH_PID_FILE=/tmp/ffmpeg-ssh.pid
-SOCAT_PID_FILE=/tmp/ffmpeg-socat.pid
 if flock -e --nb 200; then
     /usr/bin/socat TCP-LISTEN:${FFMPEG_PORT},reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
     FORWARD_ARGS+=(-R ${FFMPEG_PORT}:localhost:${FFMPEG_PORT})
@@ -53,11 +53,16 @@ fi 200>"$SHARED_LOCK"
 KILL="flock -e --nb $SHARED_LOCK kill \$(cat $SSH_PID_FILE) && rm $SSH_PID_FILE;$KILL"
 KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
 
+WARMUP=$(cat <<ENDSSH
+ls /tmp | grep "ffmpeg-cache-*" | grep -v $(basename $REMOTE_CACHE) | xargs -r -I {} rm -r /tmp/{}
+[[ ! -d ${REMOTE_CACHE} ]] && mkdir -p ${REMOTE_CACHE} && tar xzf - -C ${REMOTE_CACHE}
+ENDSSH
+)
+
 CACHE_DIR=$(mktemp -d)
 ln -sf $FFMPEG_BINARY $CACHE_FFMPEG_LIBS $SSHFS_BINARY $BUBBLEWRAP_BINARY $CACHE_DIR
 tar -h -C $CACHE_DIR -czf - . 2>/dev/null | /usr/bin/ssh \
-    -q "${SSH_ARGUMENTS[@]}" ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} \
-    "[[ ! -d ${REMOTE_CACHE} ]] && mkdir -p ${REMOTE_CACHE} && tar xzf - -C ${REMOTE_CACHE}"
+    -q "${SSH_ARGUMENTS[@]}" ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} "${WARMUP}"
 rm -r $CACHE_DIR
 
 KILL="flock $EXCLUSIVE_LOCK /usr/bin/bash -c \"$KILL\""
