@@ -45,7 +45,7 @@ for FORWARD in "${HOSTS[@]}" ; do
         echo $! > "$FORWARD_SOCAT_PID_FILE"
         flock -u 200
     fi 200>"$SHARED_LOCK"
-    KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $FORWARD_SOCAT_PID_FILE) && rm $FORWARD_SOCAT_PID_FILE;"
+    KILL+="kill \$(cat $FORWARD_SOCAT_PID_FILE) && rm $FORWARD_SOCAT_PID_FILE;"
     FORWARD_ARGS+=(-R "$LOCAL_PORT":localhost:"$LOCAL_PORT")
 done
 
@@ -57,7 +57,7 @@ if flock -e --nb 200; then
     flock -u 200
 fi 200>"$SHARED_LOCK"
 KILL="/usr/bin/ssh -q -O cancel ${SSH_ARGUMENTS[*]} ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST};$KILL"
-KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
+KILL+="kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
 
 WARMUP=$(cat <<ENDSSH
 ls /tmp | grep "ffmpeg-cache-*" | grep -v $(basename "$REMOTE_CACHE") | xargs -r -I {} rm -r /tmp/{}
@@ -71,7 +71,7 @@ tar -h -C "$CACHE_DIR" -czf - . 2>/dev/null | /usr/bin/ssh \
     -q "${SSH_ARGUMENTS[@]}" "$REMOTE_FFMPEG_USER"@"$REMOTE_FFMPEG_HOST" "$WARMUP"
 rm -r "$CACHE_DIR"
 
-KILL="flock $EXCLUSIVE_LOCK /usr/bin/bash -c \"$KILL\""
+KILL="flock $EXCLUSIVE_LOCK flock -e --nb $SHARED_LOCK bash -c \"$KILL\""
 # shellcheck disable=SC2064
 trap "$KILL" EXIT
 
