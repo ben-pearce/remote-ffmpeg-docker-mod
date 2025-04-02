@@ -18,8 +18,15 @@ SFTP_SERVER_PATH=$(command -v /usr/lib/ssh/sftp-server || command -v /usr/lib/op
 LOCK_TIMEOUT=${REMOTE_FFMPEG_LOCK_TIMEOUT:-30}
 SHARED_LOCK=/var/lock/ffmpeg-${VERSION_HASH}-shared.lock
 EXCLUSIVE_LOCK=/var/lock/ffmpeg-${VERSION_HASH}-exclusive.lock
-SSH_ARGUMENTS=( -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no -o ControlMaster=auto -o ControlPath=~/.ssh/%r@%h:%p )
-SSH_PID_FILE=/tmp/ffmpeg-ssh.pid
+SSH_CONTROL_PERSIST=${REMOTE_FFMPEG_SSH_CONTROL_PERSIST:-60}
+SSH_ARGUMENTS=( 
+    -i "$SSH_KEY_PATH"
+    -o StrictHostKeyChecking=no 
+    -o ControlMaster=auto 
+    -o ControlPath=~/.ssh/%r@%h:%p
+    -o ControlPersist="$SSH_CONTROL_PERSIST"
+    -o ExitOnForwardFailure=yes
+)
 SOCAT_PID_FILE=/tmp/ffmpeg-socat.pid
 ALIAS=""
 KILL=""
@@ -46,11 +53,10 @@ if flock -e --nb 200; then
     /usr/bin/socat TCP-LISTEN:"$FFMPEG_PORT",reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
     FORWARD_ARGS+=(-R "$FFMPEG_PORT":localhost:"$FFMPEG_PORT")
     echo $! > $SOCAT_PID_FILE
-    /usr/bin/ssh -qtN "${SSH_ARGUMENTS[@]}" ${FORWARD_ARGS[@]} ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST} &
-    echo $! > $SSH_PID_FILE
+    /usr/bin/ssh -qtfN "${SSH_ARGUMENTS[@]}" "${FORWARD_ARGS[@]}" "$REMOTE_FFMPEG_USER"@"$REMOTE_FFMPEG_HOST"
     flock -u 200
 fi 200>"$SHARED_LOCK"
-KILL="flock -e --nb $SHARED_LOCK kill \$(cat $SSH_PID_FILE) && rm $SSH_PID_FILE;$KILL"
+KILL="/usr/bin/ssh -q -O cancel ${SSH_ARGUMENTS[*]} ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST};$KILL"
 KILL+="flock -e --nb $SHARED_LOCK kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
 
 WARMUP=$(cat <<ENDSSH
