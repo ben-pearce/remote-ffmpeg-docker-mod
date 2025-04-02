@@ -1,0 +1,6 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+FFMPEG_BINARY=${REMOTE_FFMPEG_BINARY:-$(which ffmpeg)}
+FFMPEG_DIR=$(dirname "$(realpath "$FFMPEG_BINARY")")
+"$FFMPEG_DIR"/ffplay "$@"

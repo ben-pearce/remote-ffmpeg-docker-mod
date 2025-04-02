@@ -1,3 +1,4 @@
+#!/usr/bin/bash
 docker network create --driver bridge remote-ffmpeg-network
 docker build -t remote-ffmpeg-mod .. && \
 docker build -t remote-ffmpeg -f ./Dockerfile.test-ubuntu . && \
@@ -10,9 +11,9 @@ docker run \
     -v ./config:/config/ \
     remote-ffmpeg /usr/bin/bash -c "while [ ! -f ~/.exit ]; do sleep 1; done"
 sleep 1
-docker exec remote-ffmpeg /usr/bin/remote-ffmpeg -i http://remote-ffmpeg-nginx:8080/demo.mp4 -c:v libx264 -c:a aac -f null /dev/null &
-docker exec -it remote-ffmpeg /usr/bin/remote-ffmpeg -i http://remote-ffmpeg-nginx:8080/demo.mp4 -c:v libx264 -c:a aac -f null /dev/null
-sleep 5
+docker exec remote-ffmpeg /usr/bin/remote-ffmpeg/ffmpeg -i http://remote-ffmpeg-nginx:8080/demo.mp4 -c:v libx264 -c:a aac -f null /dev/null &
+docker exec -it remote-ffmpeg /usr/bin/remote-ffmpeg/ffmpeg -i http://remote-ffmpeg-nginx:8080/demo.mp4 -c:v libx264 -c:a aac -f null /dev/null
+sleep 3
 docker exec -it remote-ffmpeg top -n 1
 docker exec -it remote-ffmpeg /usr/bin/bash -c "touch ~/.exit"
 docker stop remote-ffmpeg remote-ffmpeg-nginx
