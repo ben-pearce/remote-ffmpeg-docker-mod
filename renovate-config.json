@@ -1,0 +1,36 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "repositories": ["ben-pearce/remote-ffmpeg-docker-mod"],
+  "regexManagers": [
+    {
+      "fileMatch": ["/Dockerfile$"],
+      "matchStrings": [
+        "ARG BUBBLEWRAP_VERSION=[\"']?(?<currentValue>.+?)[\"']?\\s+"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "containers/bubblewrap",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "fileMatch": ["/Dockerfile$"],
+      "matchStrings": [
+        "ARG LIBFUSE_VERSION=[\"']?(?<currentValue>.+?)[\"']?\\s+"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "libfuse/libfuse",
+      "extractVersionTemplate": "^fuse-(?<version>.*)$"
+    },
+    {
+      "fileMatch": ["/Dockerfile$"],
+      "matchStrings": [
+        "ARG SSHFS_VERSION=[\"']?(?<currentValue>.+?)[\"']?\\s+"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "libfuse/sshfs",
+      "extractVersionTemplate": "^sshfs-(?<version>.*)$"
+    }
+  ]
+}
