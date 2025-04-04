@@ -5,13 +5,15 @@ ARG LIBFUSE_URL="https://github.com/libfuse/libfuse/releases/download/fuse-${LIB
 ARG SSHFS_URL="https://github.com/libfuse/sshfs/releases/download/sshfs-${SSHFS_VERSION}/sshfs-${SSHFS_VERSION}.tar.xz"
 ARG BUBBLEWRAP_URL="https://github.com/containers/bubblewrap/releases/download/v${BUBBLEWRAP_VERSION}/bubblewrap-${BUBBLEWRAP_VERSION}.tar.xz"
 
-FROM ghcr.io/linuxserver/baseimage-ubuntu:jammy AS sshfs-glibc
+FROM ubuntu:jammy AS sshfs-glibc
 ARG SSHFS_VERSION
 ARG LIBFUSE_VERSION
 ARG LIBFUSE_URL
 ARG SSHFS_URL
 
+RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list
 RUN apt update && apt install -y \
+    curl \
     pkg-config \
     libgmp-dev \
     libmpfr-dev \
@@ -44,7 +46,7 @@ RUN meson configure \
     -Dc_link_args=-L/tmp/fuse-${LIBFUSE_VERSION}/build/lib
 RUN ninja
 
-FROM alpine:latest AS sshfs-musl
+FROM alpine:3.21.3 AS sshfs-musl
 ARG SSHFS_VERSION
 ARG LIBFUSE_VERSION
 ARG LIBFUSE_URL
@@ -94,11 +96,12 @@ RUN meson configure \
     -Dc_link_args="-L/tmp/fuse-${LIBFUSE_VERSION}/build/lib"
 RUN ninja
 
-FROM ghcr.io/linuxserver/baseimage-ubuntu:jammy AS bwrap-glibc
+FROM ubuntu:jammy AS bwrap-glibc
 ARG BUBBLEWRAP_URL
 ARG BUBBLEWRAP_VERSION
 
 RUN apt update && apt install -y \
+    curl \
     pkg-config \
     libcap-dev \
     libselinux1-dev \
@@ -115,7 +118,7 @@ ENV LDFLAGS="-static"
 RUN meson setup --prefer-static .. -Ddefault_library=static
 RUN ninja
 
-FROM alpine:latest AS bwrap-musl
+FROM alpine:3.21.3 AS bwrap-musl
 ARG BUBBLEWRAP_URL
 ARG BUBBLEWRAP_VERSION
 
