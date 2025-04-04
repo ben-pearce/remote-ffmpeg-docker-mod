@@ -48,7 +48,7 @@ RUN meson configure \
     -Dc_link_args=-L/tmp/fuse-${LIBFUSE_VERSION}/build/lib
 RUN ninja
 
-FROM alpine:3.21.3 AS sshfs-musl
+FROM alpine:3.21.3@sha256:a8560b36e8b8210634f77d9f7f9efd7ffa463e380b75e2e74aff4511df3ef88c AS sshfs-musl
 ARG SSHFS_VERSION
 ARG LIBFUSE_VERSION
 ARG LIBFUSE_URL
@@ -122,7 +122,7 @@ ENV LDFLAGS="-static"
 RUN meson setup --prefer-static .. -Ddefault_library=static
 RUN ninja
 
-FROM alpine:3.21.3 AS bwrap-musl
+FROM alpine:3.21.3@sha256:a8560b36e8b8210634f77d9f7f9efd7ffa463e380b75e2e74aff4511df3ef88c AS bwrap-musl
 ARG BUBBLEWRAP_URL
 ARG BUBBLEWRAP_VERSION
 
