@@ -5,7 +5,7 @@ ARG LIBFUSE_URL="https://github.com/libfuse/libfuse/releases/download/fuse-${LIB
 ARG SSHFS_URL="https://github.com/libfuse/sshfs/releases/download/sshfs-${SSHFS_VERSION}/sshfs-${SSHFS_VERSION}.tar.xz"
 ARG BUBBLEWRAP_URL="https://github.com/containers/bubblewrap/releases/download/v${BUBBLEWRAP_VERSION}/bubblewrap-${BUBBLEWRAP_VERSION}.tar.xz"
 
-FROM ubuntu:jammy AS sshfs-glibc
+FROM ubuntu:noble@sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782 AS sshfs-glibc
 ARG SSHFS_VERSION
 ARG LIBFUSE_VERSION
 ARG LIBFUSE_URL
@@ -96,7 +96,7 @@ RUN meson configure \
     -Dc_link_args="-L/tmp/fuse-${LIBFUSE_VERSION}/build/lib"
 RUN ninja
 
-FROM ubuntu:jammy AS bwrap-glibc
+FROM ubuntu:noble@sha256:72297848456d5d37d1262630108ab308d3e9ec7ed1c3286a32fe09856619a782 AS bwrap-glibc
 ARG BUBBLEWRAP_URL
 ARG BUBBLEWRAP_VERSION
 
