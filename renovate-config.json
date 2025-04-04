@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "repositories": ["ben-pearce/remote-ffmpeg-docker-mod"],
+  "prHourlyLimit": 15,
+  "prConcurrentLimit": 15,
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": [
+        "ARG BUBBLEWRAP_VERSION=[\"']?(?<currentValue>\\d+\\.\\d+.\\d+)[\"']?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "containers/bubblewrap",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": [
+        "ARG LIBFUSE_VERSION=[\"']?(?<currentValue>\\d+\\.\\d+.\\d+)[\"']?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "libfuse/libfuse",
+      "extractVersionTemplate": "^fuse-(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^Dockerfile$"],
+      "matchStrings": [
+        "ARG SSHFS_VERSION=[\"']?(?<currentValue>\\d+\\.\\d+.\\d+)[\"']?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "libfuse/sshfs",
+      "extractVersionTemplate": "^sshfs-(?<version>.*)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": "docker",
+      "matchPackageNames": ["ubuntu"],
+      "versioning": "regex:^jammy-(?<major>\\d+)?$"
+    }
+  ]
+}
