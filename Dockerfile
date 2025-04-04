@@ -11,7 +11,7 @@ ARG LIBFUSE_VERSION
 ARG LIBFUSE_URL
 ARG SSHFS_URL
 
-RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list
+RUN sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
 RUN apt update && apt install -y \
     curl \
     pkg-config \
@@ -21,14 +21,16 @@ RUN apt update && apt install -y \
     libglib2.0-dev \
     cmake \
     python3 \
-    python3-pip
+    meson \
+    ninja-build
 RUN apt build-dep -y g++
-RUN pip3 install meson ninja
 
 RUN curl -s -L ${LIBFUSE_URL} | tar xfz - -C /tmp
 RUN mkdir /tmp/fuse-${LIBFUSE_VERSION}/build
 WORKDIR /tmp/fuse-${LIBFUSE_VERSION}/build
 RUN LDFLAGS="-static" meson setup \
+    -Dexamples=false \
+    -Dtests=false \
     -Ddefault_library=static \
     --prefix=/tmp/libfuse ..
 RUN ninja
@@ -79,6 +81,8 @@ RUN curl -s -L ${LIBFUSE_URL} | tar xfz - -C /tmp
 RUN mkdir /tmp/fuse-${LIBFUSE_VERSION}/build
 WORKDIR /tmp/fuse-${LIBFUSE_VERSION}/build
 RUN LDFLAGS="-static" meson setup \
+    -Dexamples=false \
+    -Dtests=false \
     -Ddefault_library=static \
     --prefix=/tmp/libfuse ..
 RUN ninja
@@ -107,8 +111,8 @@ RUN apt update && apt install -y \
     libselinux1-dev \
     cmake \
     python3 \
-    python3-pip
-RUN pip3 install meson ninja
+    meson \ 
+    ninja-build
 
 RUN curl -s -L ${BUBBLEWRAP_URL} | tar xfJ - -C /tmp
 RUN mkdir /tmp/bubblewrap-${BUBBLEWRAP_VERSION}/build
