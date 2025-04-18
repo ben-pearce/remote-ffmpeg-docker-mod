@@ -1,5 +1,4 @@
 
 test/config
-test/.env
 
 docker-compose.yml
