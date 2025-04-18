@@ -2,13 +2,12 @@
 # shellcheck shell=bash
 
 FFMPEG_BINARY=${REMOTE_FFMPEG_BINARY:-$(which ffmpeg)}
-REMOTE_ABI=${REMOTE_FFMPEG_REMOTE_ABI:-'glibc'}
-SSHFS_BINARY=${REMOTE_SSHFS_BINARY:-"/usr/bin/${REMOTE_ABI}-sshfs"}
-BUBBLEWRAP_BINARY=${REMOTE_BUBBLEWRAP_BINARY:-"/usr/bin/${REMOTE_ABI}-bwrap"}
+SSHFS_BINARY=${REMOTE_SSHFS_BINARY:-"/usr/bin/sshfs"}
+BUBBLEWRAP_BINARY=${REMOTE_BUBBLEWRAP_BINARY:-"/usr/bin/bwrap"}
 FFMPEG_HASH=$(md5sum "${FFMPEG_BINARY}" | awk '{print $1}')
 SSHFS_HASH=$(md5sum "${SSHFS_BINARY}" | awk '{print $1}')
 BWRAP_HASH=$(md5sum "${BUBBLEWRAP_BINARY}" | awk '{print $1}')
-VERSION_HASH=$(echo "$FFMPEG_HASH $SSHFS_HASH $BWRAP_HASH $REMOTE_ABI" | md5sum | awk '{print $1}')
+VERSION_HASH=$(echo "$FFMPEG_HASH $SSHFS_HASH $BWRAP_HASH" | md5sum | awk '{print $1}')
 FFMPEG_PORT=${REMOTE_FFMPEG_PORT:-34567}
 REMOTE_ROOT=/tmp/ffmpeg-$(hostname)-$$
 REMOTE_CACHE=/tmp/ffmpeg-cache-${VERSION_HASH}
@@ -82,8 +81,8 @@ flock -u $EXCLUSIVE
 SCRIPT=$(cat <<ENDSSH
 trap "umount ${REMOTE_ROOT}; rm -r ${REMOTE_ROOT}" EXIT
 mkdir -p ${REMOTE_ROOT}
-${REMOTE_CACHE}/${REMOTE_ABI}-sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}
-${REMOTE_CACHE}/${REMOTE_ABI}-bwrap \
+${REMOTE_CACHE}/sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}
+${REMOTE_CACHE}/bwrap \
     --setenv LD_LIBRARY_PATH ${REMOTE_CACHE} \
     --bind ${REMOTE_ROOT} / \
     --ro-bind ${REMOTE_CACHE} ${REMOTE_CACHE} \
