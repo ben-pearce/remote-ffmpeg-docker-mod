@@ -78,8 +78,10 @@ RUN ninja
 
 FROM ghcr.io/linuxserver/baseimage-alpine:3.22@sha256:5735e64532ba899b32d22e9262b7f3ae54a98e62730a311e33d012b18e17cc84 AS buildstage
 ARG SSHFS_VERSION
+ARG LIBFUSE_VERSION
 ARG BUBBLEWRAP_VERSION
 COPY root/ /root-layer/
+COPY --from=sshfs /tmp/fuse-${LIBFUSE_VERSION}/build/util/fusermount3 /root-layer/usr/bin/fusermount3
 COPY --from=sshfs /tmp/sshfs-${SSHFS_VERSION}/build/sshfs /root-layer/usr/bin/sshfs
 COPY --from=bwrap /tmp/bubblewrap-${BUBBLEWRAP_VERSION}/build/bwrap /root-layer/usr/bin/bwrap
 
