@@ -60,7 +60,6 @@ fork_n_times() {
         tmps[i]=$tmp
 
         $func "${@:5}" > "$tmp" 2>&1 &
-        sleep 2
         pids[i]=$!
     done
 
