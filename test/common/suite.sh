@@ -21,7 +21,7 @@ create_renderer_mock() {
 }
 
 create_proxy_mock() {
-    docker run --network=remote-ffmpeg-network \
+    docker run -q --network=remote-ffmpeg-network \
         --name remote-ffmpeg-nginx \
         -v ./www:/usr/share/nginx/html \
         -d nginx > /dev/null
