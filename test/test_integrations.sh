@@ -1,11 +1,11 @@
 #!/usr/bin/bash
 
-. ./common/suite.sh
+. ./common/environment.sh
 . ./common/ffmpeg.sh
 
 setup_suite() {
-    relax_apparmor_restrictions
-    create_renderer_mock
+    setup_apparmor_restrictions
+    setup_renderer_mock
 }
 
 test_jellyfin() {
@@ -42,6 +42,6 @@ test_jellyfin() {
 }
 
 teardown_suite() {
-    destroy_renderer_mock
-    tighten_apparmor_restrictions
+    teardown_renderer_mock
+    teardown_apparmor_restrictions
 }

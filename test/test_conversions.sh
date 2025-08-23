@@ -19,47 +19,43 @@ FFMPEG_ARGS=(
 
 EXPECTED_SUM="a75a1c0f557466006ac98ee01f34ab07"
 
-. ./common/suite.sh
+. ./common/environment.sh
 . ./common/ffmpeg.sh
 
 setup_suite() {
-    relax_apparmor_restrictions
-    create_renderer_mock
-}
-
-extract_md5() {
-    sed -n 's/.*MD5=\([a-fA-F0-9]\{32\}\).*/\1/p'
+    setup_apparmor_restrictions
+    setup_renderer_mock
 }
 
 test_assert_alpine_conv_expected_output() {
-    sum=$( remote_ffmpeg_alpine "${FFMPEG_ARGS[@]}" 2>&1 | extract_md5 )
+    sum=$( ffmpeg_invoke alpine ffmpeg "${FFMPEG_ARGS[@]}" 2>&1 | ffmpeg_md5 )
     assert_equals "$EXPECTED_SUM" "$sum"
 }
 
 test_assert_alpine_conv_expected_output_multiple() {
     declare -a outputs
-    fork_n_times_alpine 10 outputs f_remote_ffmpeg_alpine "${FFMPEG_ARGS[@]}"
+    ffmpeg_daemon_spawn alpine 10 outputs ffmpeg "${FFMPEG_ARGS[@]}"
 
     for o in "${outputs[@]}"; do
-        assert_equals "$EXPECTED_SUM" "$(extract_md5 <<< "$o")"
+        assert_equals "$EXPECTED_SUM" "$(ffmpeg_md5 <<< "$o")"
     done
 }
 
 test_assert_ubuntu_conv_expected_output() {
-    sum=$(remote_ffmpeg_ubuntu "${FFMPEG_ARGS[@]}" 2>&1 | extract_md5 )
+    sum=$(ffmpeg_invoke ubuntu ffmpeg "${FFMPEG_ARGS[@]}" 2>&1 | ffmpeg_md5 )
     assert_equals "$EXPECTED_SUM" "$sum"
 }
 
 test_assert_ubuntu_conv_expected_output_multiple() {
     declare -a outputs
-    fork_n_times_ubuntu 10 outputs f_remote_ffmpeg_ubuntu "${FFMPEG_ARGS[@]}"
+    ffmpeg_daemon_spawn ubuntu 10 outputs ffmpeg "${FFMPEG_ARGS[@]}"
 
     for o in "${outputs[@]}"; do
-        assert_equals "$EXPECTED_SUM" "$(extract_md5 <<< "$o")"
+        assert_equals "$EXPECTED_SUM" "$(ffmpeg_md5 <<< "$o")"
     done
 }
 
 teardown_suite() {
-    destroy_renderer_mock
-    tighten_apparmor_restrictions
+    teardown_renderer_mock
+    teardown_apparmor_restrictions
 }
