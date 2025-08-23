@@ -83,7 +83,7 @@ trap "$KILL" EXIT
 flock -u $EXCLUSIVE
 
 SCRIPT=$(cat <<ENDSSH
-trap "umount ${REMOTE_ROOT}; rm -r ${REMOTE_ROOT}" EXIT
+trap "umount -q ${REMOTE_ROOT}; rm -r ${REMOTE_ROOT}" EXIT
 mkdir -p ${REMOTE_ROOT}
 ${REMOTE_CACHE}/sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}
 ${REMOTE_CACHE}/bwrap \
