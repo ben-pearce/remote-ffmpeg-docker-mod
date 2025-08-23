@@ -32,6 +32,9 @@ SOCAT_PID_FILE=/tmp/ffmpeg-socat.pid
 ALIAS=""
 KILL=""
 
+exec {SHARED}>"$SHARED_LOCK"
+flock -s $SHARED
+
 exec {EXCLUSIVE}>"$EXCLUSIVE_LOCK"
 flock -w "$LOCK_TIMEOUT" $EXCLUSIVE
 
@@ -41,22 +44,23 @@ for FORWARD in "${HOSTS[@]}" ; do
     IFS=':' read -r LOCAL_PORT ADDR REMOTE_PORT <<< "$FORWARD"
     FORWARD_SOCAT_PID_FILE=/tmp/ffmpeg-socat-$LOCAL_PORT.pid
     [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="127.0.0.1 $ADDR"$'\n'
-    if flock -e --nb 200; then
+
+    if [ ! -f "$FORWARD_SOCAT_PID_FILE" ]; then
         /usr/bin/socat TCP-LISTEN:"$LOCAL_PORT",reuseaddr,fork TCP:"$ADDR":"$REMOTE_PORT" &
         echo $! > "$FORWARD_SOCAT_PID_FILE"
-        flock -u 200
-    fi 200>"$SHARED_LOCK"
+    fi
+
     KILL+="kill \$(cat $FORWARD_SOCAT_PID_FILE) && rm $FORWARD_SOCAT_PID_FILE;"
     FORWARD_ARGS+=(-R "$LOCAL_PORT":localhost:"$LOCAL_PORT")
 done
 
-if flock -e --nb 200; then
+if [ ! -f "$SOCAT_PID_FILE" ]; then
     /usr/bin/socat TCP-LISTEN:"$FFMPEG_PORT",reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
     FORWARD_ARGS+=(-R "$FFMPEG_PORT":localhost:"$FFMPEG_PORT")
     echo $! > $SOCAT_PID_FILE
     /usr/bin/ssh -qtfN "${SSH_ARGUMENTS[@]}" "${FORWARD_ARGS[@]}" "$REMOTE_FFMPEG_USER"@"$REMOTE_FFMPEG_HOST"
-    flock -u 200
-fi 200>"$SHARED_LOCK"
+fi
+
 KILL="/usr/bin/ssh -q -O cancel ${SSH_ARGUMENTS[*]} ${REMOTE_FFMPEG_USER}@${REMOTE_FFMPEG_HOST};$KILL"
 KILL+="kill \$(cat $SOCAT_PID_FILE) && rm $SOCAT_PID_FILE;"
 
@@ -76,8 +80,6 @@ KILL="flock $EXCLUSIVE_LOCK flock -e --nb $SHARED_LOCK bash -c \"$KILL\""
 # shellcheck disable=SC2064
 trap "$KILL" EXIT
 
-exec {SHARED}>"$SHARED_LOCK"
-flock -s $SHARED
 flock -u $EXCLUSIVE
 
 SCRIPT=$(cat <<ENDSSH
