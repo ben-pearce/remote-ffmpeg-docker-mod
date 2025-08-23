@@ -96,7 +96,7 @@ ${REMOTE_CACHE}/bwrap \
     --bind /sys /sys \
     --unshare-pid \
     --die-with-parent \
-    ${REMOTE_CACHE}/ffmpeg ${*@Q} 3< <(echo "${ALIAS}");
+    /bin/bash -c "${REMOTE_CACHE}/ffmpeg ${*@Q}; sync" 3<<< "${ALIAS}"
 ENDSSH
 )
 
