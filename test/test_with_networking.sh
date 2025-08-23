@@ -40,7 +40,7 @@ test_assert_alpine_conv_expected_output() {
 
 test_assert_alpine_conv_expected_output_multiple() {
     declare -a outputs
-    fork_n_times_alpine 3 outputs f_remote_ffmpeg_alpine "${FFMPEG_ARGS[@]}"
+    fork_n_times_alpine 10 outputs f_remote_ffmpeg_alpine "${FFMPEG_ARGS[@]}"
 
     for o in "${outputs[@]}"; do
         assert_equals "$EXPECTED_SUM" "$(extract_md5 <<< "$o")"
@@ -54,7 +54,7 @@ test_assert_ubuntu_conv_expected_output() {
 
 test_assert_ubuntu_conv_expected_output_multiple() {
     declare -a outputs
-    fork_n_times_ubuntu 3 outputs f_remote_ffmpeg_ubuntu "${FFMPEG_ARGS[@]}"
+    fork_n_times_ubuntu 10 outputs f_remote_ffmpeg_ubuntu "${FFMPEG_ARGS[@]}"
 
     for o in "${outputs[@]}"; do
         assert_equals "$EXPECTED_SUM" "$(extract_md5 <<< "$o")"
