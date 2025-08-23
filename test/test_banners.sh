@@ -17,22 +17,22 @@ setup_suite() {
 
 test_assert_alpine_ffmpeg_has_banner() {
     banner="Hyper fast Audio and Video encoder"
-    assert_equals "$banner" "$( remote_ffmpeg_alpine 2>&1 | grep "$banner" )"
+    assert_equals "$banner" "$( remote_ffmpeg_alpine -h 2>&1 | grep "$banner" )"
 }
 
 test_assert_alpine_ffprobe_has_banner() {
     banner="Simple multimedia streams analyzer"
-    assert_equals "$banner" "$( remote_ffprobe_alpine 2>&1 | grep "$banner" )"
+    assert_equals "$banner" "$( remote_ffprobe_alpine -h 2>&1 | grep "$banner" )"
 }
 
 test_assert_ubuntu_ffmpeg_has_banner() {
     banner="Hyper fast Audio and Video encoder"
-    assert_equals "$banner" "$( remote_ffmpeg_ubuntu 2>&1 | grep "$banner" )"
+    assert_equals "$banner" "$( remote_ffmpeg_ubuntu -h 2>&1 | grep "$banner" )"
 }
 
 test_assert_ubuntu_ffprobe_has_banner() {
     banner="Simple multimedia streams analyzer"
-    assert_equals "$banner" "$( remote_ffprobe_ubuntu 2>&1 | grep "$banner" )"
+    assert_equals "$banner" "$( remote_ffprobe_ubuntu -h 2>&1 | grep "$banner" )"
 }
 
 teardown_suite() {
