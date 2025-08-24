@@ -5,6 +5,9 @@
   "prHourlyLimit": 15,
   "prConcurrentLimit": 15,
   "pinDigests": true,
+  "dockerfile": {
+    "ignorePaths": [ ]
+  },
   "customManagers": [
     {
       "customType": "regex",
