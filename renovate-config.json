@@ -38,6 +38,17 @@
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "libfuse/sshfs",
       "extractVersionTemplate": "^sshfs-(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["^bash_unit$"],
+      "matchStrings": [
+        "BASH_UNIT_VERSION=[\"']?(?<currentValue>\\d+\\.\\d+.\\d+)[\"']?",
+        "BASH_UNIT_SHA256=[\"']?(?<currentDigest>[0-9a-f]+)[\"']?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "bash-unit/bash_unit",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     }
   ],
   "packageRules": [
