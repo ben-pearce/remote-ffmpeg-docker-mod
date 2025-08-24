@@ -13,7 +13,7 @@ ffmpeg_build_image() {
 
 ffmpeg_create_runner() {
     variant=$1
-    build_runner_image "$variant"
+    ffmpeg_build_image "$variant"
     docker run --name "remote-ffmpeg-$variant" \
         "${COMMON_RUNNER_ARGS[@]}" \
         "${RUNNER_ARGS[@]}" \
