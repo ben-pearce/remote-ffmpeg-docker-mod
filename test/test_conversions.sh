@@ -1,0 +1,61 @@
+#!/usr/bin/bash
+
+RUNNER_ARGS=(
+    --network=remote-ffmpeg-network
+    -e "REMOTE_FFMPEG_USER=ubuntu"
+    -e "REMOTE_FFMPEG_HOST=renderer"
+    -e "REMOTE_FFMPEG_PORT=6543"
+    -v ./www:/test
+)
+
+INPUT_FILE=/test/demo.mp4
+
+FFMPEG_ARGS=(
+    -i "$INPUT_FILE"
+    -c:v copy
+    -c:a copy
+    -f md5 -
+)
+
+EXPECTED_SUM="a75a1c0f557466006ac98ee01f34ab07"
+
+. ./common/environment.sh
+. ./common/ffmpeg.sh
+
+setup_suite() {
+    setup_apparmor_restrictions
+    setup_renderer_mock
+}
+
+test_assert_alpine_conv_expected_output() {
+    sum=$( ffmpeg_invoke alpine ffmpeg "${FFMPEG_ARGS[@]}" 2>&1 | ffmpeg_md5 )
+    assert_equals "$EXPECTED_SUM" "$sum"
+}
+
+test_assert_alpine_conv_expected_output_multiple() {
+    declare -a outputs
+    ffmpeg_daemon_spawn alpine 10 outputs ffmpeg "${FFMPEG_ARGS[@]}"
+
+    for o in "${outputs[@]}"; do
+        assert_equals "$EXPECTED_SUM" "$(ffmpeg_md5 <<< "$o")"
+    done
+}
+
+test_assert_ubuntu_conv_expected_output() {
+    sum=$(ffmpeg_invoke ubuntu ffmpeg "${FFMPEG_ARGS[@]}" 2>&1 | ffmpeg_md5 )
+    assert_equals "$EXPECTED_SUM" "$sum"
+}
+
+test_assert_ubuntu_conv_expected_output_multiple() {
+    declare -a outputs
+    ffmpeg_daemon_spawn ubuntu 10 outputs ffmpeg "${FFMPEG_ARGS[@]}"
+
+    for o in "${outputs[@]}"; do
+        assert_equals "$EXPECTED_SUM" "$(ffmpeg_md5 <<< "$o")"
+    done
+}
+
+teardown_suite() {
+    teardown_renderer_mock
+    teardown_apparmor_restrictions
+}
