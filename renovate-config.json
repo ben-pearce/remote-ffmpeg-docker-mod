@@ -5,13 +5,11 @@
   "prHourlyLimit": 15,
   "prConcurrentLimit": 15,
   "pinDigests": true,
-  "dockerfile": {
-    "ignorePaths": [ ]
-  },
+  "dockerfile": {"ignorePaths": []},
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
+      "managerFilePatterns": ["/^Dockerfile$/"],
       "matchStrings": [
         "ARG BUBBLEWRAP_VERSION=[\"']?(?<currentValue>\\d+\\.\\d+.\\d+)[\"']?"
       ],
@@ -21,7 +19,7 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
+      "managerFilePatterns": ["/^Dockerfile$/"],
       "matchStrings": [
         "ARG LIBFUSE_VERSION=[\"']?(?<currentValue>\\d+\\.\\d+.\\d+)[\"']?"
       ],
@@ -31,13 +29,23 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["^Dockerfile$"],
+      "managerFilePatterns": ["/^Dockerfile$/"],
       "matchStrings": [
         "ARG SSHFS_VERSION=[\"']?(?<currentValue>\\d+\\.\\d+.\\d+)[\"']?"
       ],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "libfuse/sshfs",
       "extractVersionTemplate": "^sshfs-(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^bash_unit$/"],
+      "matchStrings": [
+        "BASH_UNIT_VERSION=[\"']?(?<currentValue>\\d+\\.\\d+.\\d+)[\"']?"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "bash-unit/bash_unit",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     }
   ],
   "packageRules": [
