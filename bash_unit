@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BASH_UNIT_VERSION="2.3.2"
+BASH_UNIT_SHA256="368d1712d4c265909a5039ea91180dba1db5b15b5a02cf24cfb3b7547c0e9150"
+BASH_UNIT_SOURCE="https://github.com/bash-unit/bash_unit/archive/refs/tags/v${BASH_UNIT_VERSION}.tar.gz"
+
+TMP_DIR=".tmp"
+BASH_UNIT_SCRIPT="${TMP_DIR}/bash_unit_${BASH_UNIT_VERSION}"
+ARCHIVE_PATH="${TMP_DIR}/bash_unit_${BASH_UNIT_VERSION}.tar.gz"
+
+mkdir -p "$TMP_DIR"
+
+# Check if script already exists
+if [[ ! -f "$BASH_UNIT_SCRIPT" ]]; then
+  echo "bash_unit script not found, downloading..."
+
+  # Download the archive
+  curl -sSL "$BASH_UNIT_SOURCE" -o "$ARCHIVE_PATH"
+
+  # Verify SHA-256 checksum
+  if ! echo "${BASH_UNIT_SHA256}  ${ARCHIVE_PATH}" | sha256sum -c -; then
+    echo "SHA256 checksum verification failed!"
+    exit 1
+  fi
+
+  # Extract only the bash_unit script from archive to destination
+  TAR_PATH="bash_unit-${BASH_UNIT_VERSION}/bash_unit"
+  tar --extract --gzip --file="$ARCHIVE_PATH" --directory="$TMP_DIR" --strip-components=1 "$TAR_PATH"
+
+  # Rename/move the script to the expected path
+  mv "${TMP_DIR}/bash_unit" "$BASH_UNIT_SCRIPT"
+  chmod +x "$BASH_UNIT_SCRIPT"
+fi
+
+# Run the script with passed arguments
+"$BASH_UNIT_SCRIPT" "$@"
