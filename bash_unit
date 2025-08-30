@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASH_UNIT_VERSION="2.3.2"
+BASH_UNIT_VERSION="2.3.3"
 BASH_UNIT_SHA256="368d1712d4c265909a5039ea91180dba1db5b15b5a02cf24cfb3b7547c0e9150"
 BASH_UNIT_SOURCE="https://github.com/bash-unit/bash_unit/archive/refs/tags/v${BASH_UNIT_VERSION}.tar.gz"
 
