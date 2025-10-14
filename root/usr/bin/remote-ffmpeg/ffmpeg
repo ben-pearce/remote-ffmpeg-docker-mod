@@ -32,11 +32,11 @@ SOCAT_PID_FILE=/tmp/ffmpeg-socat.pid
 ALIAS=""
 KILL=""
 
-exec {SHARED}>"$SHARED_LOCK"
-flock -s $SHARED
-
 exec {EXCLUSIVE}>"$EXCLUSIVE_LOCK"
 flock -w "$LOCK_TIMEOUT" $EXCLUSIVE
+
+exec {SHARED}>"$SHARED_LOCK"
+flock -s $SHARED
 
 IFS=',' read -r -a HOSTS <<< "$REMOTE_FFMPEG_FORWARD_HOSTS"
 FORWARD_ARGS=()
@@ -46,7 +46,7 @@ for FORWARD in "${HOSTS[@]}" ; do
     [[ ! $ADDR =~ ^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)$ ]] && ALIAS+="127.0.0.1 $ADDR"$'\n'
 
     if [ ! -f "$FORWARD_SOCAT_PID_FILE" ]; then
-        /usr/bin/socat TCP-LISTEN:"$LOCAL_PORT",reuseaddr,fork TCP:"$ADDR":"$REMOTE_PORT" &
+        setsid /usr/bin/socat TCP-LISTEN:"$LOCAL_PORT",reuseaddr,fork TCP:"$ADDR":"$REMOTE_PORT" &
         echo $! > "$FORWARD_SOCAT_PID_FILE"
     fi
 
@@ -55,7 +55,7 @@ for FORWARD in "${HOSTS[@]}" ; do
 done
 
 if [ ! -f "$SOCAT_PID_FILE" ]; then
-    /usr/bin/socat TCP-LISTEN:"$FFMPEG_PORT",reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
+    setsid /usr/bin/socat TCP-LISTEN:"$FFMPEG_PORT",reuseaddr,fork EXEC:"$SFTP_SERVER_PATH" &
     FORWARD_ARGS+=(-R "$FFMPEG_PORT":localhost:"$FFMPEG_PORT")
     echo $! > $SOCAT_PID_FILE
     /usr/bin/ssh -qtfN "${SSH_ARGUMENTS[@]}" "${FORWARD_ARGS[@]}" "$REMOTE_FFMPEG_USER"@"$REMOTE_FFMPEG_HOST"
@@ -76,14 +76,17 @@ tar -h -C "$CACHE_DIR" -czf - . 2>/dev/null | /usr/bin/ssh \
     -q "${SSH_ARGUMENTS[@]}" "$REMOTE_FFMPEG_USER"@"$REMOTE_FFMPEG_HOST" "$WARMUP"
 rm -r "$CACHE_DIR"
 
-KILL="flock $EXCLUSIVE_LOCK flock -e --nb $SHARED_LOCK bash -c \"$KILL\""
+cleanup() {
+    flock "$EXCLUSIVE_LOCK" -c "flock -u $SHARED; flock --nb \"$SHARED_LOCK\" -c '$KILL'"
+}
+
 # shellcheck disable=SC2064
-trap "$KILL" EXIT
+trap cleanup EXIT
 
 flock -u $EXCLUSIVE
 
 SCRIPT=$(cat <<ENDSSH
-trap "umount -q ${REMOTE_ROOT}; rm -r ${REMOTE_ROOT}" EXIT
+trap "umount -q ${REMOTE_ROOT}; rm -r ${REMOTE_ROOT};" EXIT
 mkdir -p ${REMOTE_ROOT}
 ${REMOTE_CACHE}/sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}
 ${REMOTE_CACHE}/bwrap \
@@ -96,11 +99,10 @@ ${REMOTE_CACHE}/bwrap \
     --bind /sys /sys \
     --unshare-pid \
     --die-with-parent \
-    /bin/bash -c "${REMOTE_CACHE}/ffmpeg ${*@Q}; sync" 3<<< "${ALIAS}"
+    /bin/bash -c "${REMOTE_CACHE}/ffmpeg ${*@Q};" 3<<< "${ALIAS}"
 ENDSSH
 )
 
 /usr/bin/ssh \
     -qt "${SSH_ARGUMENTS[@]}" \
     "$REMOTE_FFMPEG_USER"@"$REMOTE_FFMPEG_HOST" "$SCRIPT"
-flock -u $SHARED
