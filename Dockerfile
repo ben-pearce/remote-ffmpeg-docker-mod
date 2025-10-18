@@ -76,7 +76,7 @@ RUN PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/local/lib/pkgconfig \
     -Dselinux=disabled ..
 RUN ninja
 
-FROM ghcr.io/linuxserver/baseimage-alpine:3.22@sha256:75e3a1b6ea8251eb3f522ed67cb923194171f1df5d689ae796756d9de829be3b AS buildstage
+FROM ghcr.io/linuxserver/baseimage-alpine:3.22@sha256:5f7043d38216525a045cd4b7077098326a99cb40a22e7bedbb021bac5a6cfc63 AS buildstage
 ARG SSHFS_VERSION
 ARG LIBFUSE_VERSION
 ARG BUBBLEWRAP_VERSION
