@@ -3,7 +3,7 @@
 
 FFMPEG_BINARY=${REMOTE_FFMPEG_BINARY:-$(which ffmpeg)}
 SSHFS_BINARY=${REMOTE_SSHFS_BINARY:-"/usr/bin/sshfs"}
-FUSERMOUNT_BINARY=${REMOTE_SSHFS_BINARY:-"/usr/bin/fusermount3"}
+FUSERMOUNT_BINARY=${REMOTE_FUSERMOUNT_BINARY:-"/usr/bin/fusermount3"}
 BUBBLEWRAP_BINARY=${REMOTE_BUBBLEWRAP_BINARY:-"/usr/bin/bwrap"}
 FFMPEG_HASH=$(md5sum "${FFMPEG_BINARY}" | awk '{print $1}')
 SSHFS_HASH=$(md5sum "${SSHFS_BINARY}" | awk '{print $1}')
