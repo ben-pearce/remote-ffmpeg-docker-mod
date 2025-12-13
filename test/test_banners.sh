@@ -16,7 +16,7 @@ setup_suite() {
 }
 
 test_assert_alpine_ffmpeg_has_banner() {
-    banner="Hyper fast Audio and Video encoder"
+    banner="Universal media converter"
     assert_equals "$banner" "$( ffmpeg_invoke "alpine" "ffmpeg" -h 2>&1 | grep "$banner" )"
 }
 
