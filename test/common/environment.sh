@@ -28,6 +28,7 @@ teardown_renderer_mock() {
 }
 
 setup_proxy_mock() {
+    docker build -qt nginx -f ./images/Dockerfile.nginx . > /dev/null
     docker run -q --network=remote-ffmpeg-network \
         --name remote-ffmpeg-nginx \
         -v ./www:/usr/share/nginx/html \
