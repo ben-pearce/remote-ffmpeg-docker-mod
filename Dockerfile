@@ -5,7 +5,7 @@ ARG LIBFUSE_URL="https://github.com/libfuse/libfuse/releases/download/fuse-${LIB
 ARG SSHFS_URL="https://github.com/libfuse/sshfs/releases/download/sshfs-${SSHFS_VERSION}/sshfs-${SSHFS_VERSION}.tar.xz"
 ARG BUBBLEWRAP_URL="https://github.com/containers/bubblewrap/releases/download/v${BUBBLEWRAP_VERSION}/bubblewrap-${BUBBLEWRAP_VERSION}.tar.xz"
 
-FROM alpine:3.23.2@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS sshfs
+FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS sshfs
 ARG SSHFS_VERSION
 ARG LIBFUSE_VERSION
 ARG LIBFUSE_URL
@@ -49,7 +49,7 @@ RUN PKG_CONFIG_PATH="/tmp/fuse-${LIBFUSE_VERSION}/build/meson-private:/usr/lib/p
         --prefix=/tmp/sshfs-${SSHFS_VERSION}
 RUN ninja
 
-FROM alpine:3.23.2@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS bwrap
+FROM alpine:3.23.3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS bwrap
 ARG BUBBLEWRAP_URL
 ARG BUBBLEWRAP_VERSION
 
