@@ -1,5 +1,5 @@
 FROM remote-ffmpeg-mod AS mod
-FROM lscr.io/linuxserver/jellyfin:10.11.5ubu2404-ls16@sha256:313571f253bf1035809f6856bb063904456226ef3899b96e60ee4597b3477246
+FROM lscr.io/linuxserver/jellyfin:10.11.6ubu2404-ls18@sha256:ca65e82841e9502487b04bfc234ed8ca65b52b7f48ab0bd9879e834056d0d7e7
 
 RUN apt update && apt install -y openssh-client openssh-server socat
 
