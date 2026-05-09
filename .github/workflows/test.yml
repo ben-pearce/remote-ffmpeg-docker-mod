@@ -1,4 +1,5 @@
-name: test
+name: 🧪 Run Tests
+
 on:
   pull_request:
     branches:
@@ -10,14 +11,15 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Use Docker
+      - name: 🐳 Use Docker
         uses: actions-hub/docker@f5fdbfc3f9d2a9265ead8962c1314108a7b7ec5d # v1.0.3
         env:
           SKIP_LOGIN: true
 
-      - name: Run bash_unit tests
+      - name: 🧪 Run bash_unit tests
         run: sudo ./bash_unit test/test_*.sh
