@@ -88,7 +88,7 @@ flock -u $EXCLUSIVE
 SCRIPT=$(cat <<ENDSSH
 trap "umount -q ${REMOTE_ROOT}; rm -r ${REMOTE_ROOT};" EXIT
 mkdir -p ${REMOTE_ROOT}
-${REMOTE_CACHE}/sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT}
+${REMOTE_CACHE}/sshfs localhost:/ ${REMOTE_ROOT} -o directport=${FFMPEG_PORT} -o no_contain_symlinks
 ${REMOTE_CACHE}/bwrap \
     --setenv LD_LIBRARY_PATH ${REMOTE_CACHE} \
     --bind ${REMOTE_ROOT} / \
