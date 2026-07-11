@@ -1,5 +1,5 @@
 FROM remote-ffmpeg-mod AS mod
-FROM lscr.io/linuxserver/baseimage-alpine:3.24-c0036bf5-ls3@sha256:b1c143859375d24e0b837ad96ca8d9af9b819f469289c1447930d76841b77f0d
+FROM lscr.io/linuxserver/baseimage-alpine:3.24-fd66a627-ls4@sha256:8b932349a38b505fc80cadb47ab2893a7fb36b485e1a349f8fd3ab61c56e9aaa
 
 RUN apk add ffmpeg openssh socat bash flock
 
