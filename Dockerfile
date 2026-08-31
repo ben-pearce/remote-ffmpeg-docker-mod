@@ -1,4 +1,4 @@
-ARG BUBBLEWRAP_VERSION="0.11.2"
+ARG BUBBLEWRAP_VERSION="0.12.0"
 ARG LIBFUSE_VERSION="3.18.2"
 ARG SSHFS_VERSION="3.7.6"
 ARG LIBFUSE_URL="https://github.com/libfuse/libfuse/releases/download/fuse-${LIBFUSE_VERSION}/fuse-${LIBFUSE_VERSION}.tar.gz"
@@ -70,6 +70,7 @@ RUN mkdir /tmp/bubblewrap-${BUBBLEWRAP_VERSION}/build
 WORKDIR /tmp/bubblewrap-${BUBBLEWRAP_VERSION}/build
 
 RUN PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/local/lib/pkgconfig \
+    CFLAGS="-include linux/limits.h" \
     LDFLAGS="-static" meson setup \
     --prefer-static \
     -Ddefault_library=static \
