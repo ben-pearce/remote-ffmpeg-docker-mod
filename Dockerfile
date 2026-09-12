@@ -1,5 +1,5 @@
 ARG BUBBLEWRAP_VERSION="0.12.0"
-ARG LIBFUSE_VERSION="3.18.2"
+ARG LIBFUSE_VERSION="3.18.3"
 ARG SSHFS_VERSION="3.7.6"
 ARG LIBFUSE_URL="https://github.com/libfuse/libfuse/releases/download/fuse-${LIBFUSE_VERSION}/fuse-${LIBFUSE_VERSION}.tar.gz"
 ARG SSHFS_URL="https://github.com/libfuse/sshfs/releases/download/sshfs-${SSHFS_VERSION}/sshfs-${SSHFS_VERSION}.tar.xz"
